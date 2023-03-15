@@ -1,3 +1,31 @@
+dh-lua (29) unstable; urgency=medium
+
+  * Remove Enrico Tassi from the uploaders list (closes: #995544).
+  * Don't use deprecated `which`, use `command -v` instead in Makefile.single.
+  * Put versioned policy.txt to the doc directory.
+  * Add a patch by Helmut Grohne to stop using libtool-bin. (closes: #1024721).
+  * Switch build dependency to debhelper-compat.
+  * Bump Debhelper compatibility level to 13.
+  * Bump Standards-Version to 4.6.1.
+
+ -- Sergei Golovan <sgolovan@debian.org>  Fri, 06 Jan 2023 10:08:06 +0300
+
+dh-lua (28) unstable; urgency=medium
+
+  * Team upload
+  [ Helmut Grohne ]
+  * Allow using the lua addon declaratively. (Closes: #1024706)
+
+ -- Jérémy Lal <kapouer@melix.org>  Wed, 23 Nov 2022 16:02:26 +0100
+
+dh-lua (27+nmu1) unstable; urgency=medium
+
+  * Non-maintainer upload.
+  * make/dh-lua.Makefile.single: stop wrapping commands through catchsegv
+    (closes: #1017832).
+
+ -- Aurelien Jarno <aurel32@debian.org>  Sat, 03 Sep 2022 09:25:48 +0000
+
 dh-lua (27) unstable; urgency=medium
 
   * Upload to unstable since Lua 5.4 is finally released.
