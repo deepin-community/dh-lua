@@ -31,6 +31,7 @@ install:
 	cp test/5.2/* $(DESTDIR)/$(DH_LUA_HOME)/test/5.2/
 	cp test/5.3/* $(DESTDIR)/$(DH_LUA_HOME)/test/5.3/
 	cp test/5.4/* $(DESTDIR)/$(DH_LUA_HOME)/test/5.4/
+	cp data/configure.ac $(DESTDIR)/$(DH_LUA_HOME)/
 	cp debhelper7/buildsystem/* $(DESTDIR)/$(DH_HOME)/Buildsystem/
 	cp debhelper7/sequence/* $(DESTDIR)/$(DH_HOME)/Sequence/
 	cat doc/policy.txt | sed 's/@@V@@/$(POLICY_VERSION)/' \

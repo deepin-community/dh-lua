@@ -2,6 +2,9 @@
 # License: MIT/X
 # vim: foldmethod=marker:ft=make
 
+include /usr/share/dpkg/architecture.mk
+include /usr/share/dpkg/buildtools.mk
+
 # override for more verbose output
 ifeq "$(DH_VERBOSE)-$(findstring verbose,$(DH_LUA_OPTS))" "-"
 H=@
@@ -44,7 +47,9 @@ DH_LUA_SUPPORT_FILES=/usr/share/dh-lua/
 LUA=lua$(LUA_VERSION)
 C_TEST_FILE=$(DH_LUA_SUPPORT_FILES)test/$(LUA_VERSION)/app.c
 PREFIX=$(DESTDIR)/usr/
-LBTL=libtool --tag=CC
+LBTL_DIR=$(CURDIR)/debian/.dh_lua-libtool
+LBTL_EXE=$(LBTL_DIR)/libtool
+LBTL=$(LBTL_EXE) --tag=CC
 ifeq "$(LUA_SOURCES_MANGLER)" ""
 	LUA_SOURCES_MANGLER:=cat
 endif
@@ -52,13 +57,13 @@ endif
 # .pc
 PKG_CONF_NAME=$(LUA)-$(PKG_NAME_DASH).pc
 DEB_PKGCONFIG_TEMPL=$(DH_LUA_SUPPORT_FILES)/template/pkg-config.pc.in
-PKGCONF=pkg-config $(LUA) --define-variable=prefix=$(PREFIX)
+PKGCONF=$(PKG_CONFIG) $(LUA) --define-variable=prefix=$(PREFIX)
 ifeq "$(PKG_VERSION)" ""
 PKG_VERSION=$(shell dpkg-parsechangelog|grep ^Ver|cut -d ' ' -f 2|cut -d '-' -f 1)
 endif
 
 # sanity check
-ifneq "$(shell pkg-config $(LUA) --exists; echo $$?)" "0"
+ifneq "$(shell $(PKG_CONFIG) $(LUA) --exists; echo $$?)" "0"
 $(error "pkg-config file for $(LUA) not found") 
 endif
 
@@ -83,7 +88,6 @@ LUA_LBTL_D := $(shell $(PKGCONF) --libs)
 # /usr/lib/, /usr/lib/lua/5.1, /usr/share/lua/5.1/
 LUA_CPATH:=$(shell $(PKGCONF) --define-variable=abiver=$(LUA_VERSION) --variable=INSTALL_CMOD)
 LUA_SPATH:=$(shell $(PKGCONF) --define-variable=abiver=$(LUA_VERSION) --variable=INSTALL_LMOD)
-DEB_HOST_MULTIARCH:=$(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
 LUA_LPATH=$(PREFIX)/lib/$(DEB_HOST_MULTIARCH)
 
 # /usr/include/lua5.1
@@ -129,10 +133,6 @@ DEB_INST_DEV_TEMPL=$(DH_LUA_SUPPORT_FILES)template/dev.install.in
 # where to find stuff
 LUA_INIT=' package.path="$(UID)/?.lua;$(UID)/?/init.lua;"..package.path; package.cpath="$(UID)/?.so;"..package.cpath; '
 
-# to help crosscompiling
-DEB_BUILD_ARCH:=$(shell dpkg-architecture -qDEB_BUILD_ARCH)
-DEB_HOST_ARCH:=$(shell dpkg-architecture -qDEB_HOST_ARCH)
-
 # lua5.2 specific
 ifeq "$(LUA_VERSION)" "5.2"
 	LUA_TEST := $(subst /usr/bin/shake,,$(LUA_TEST))
@@ -173,6 +173,7 @@ endif
 clean: sanity
 	$(H)$(RM) -rf $(UID)/
 	$(H)$(call empty_trash)
+	$(H)$(RM) -rf $(LBTL_DIR)
 	# fix for leftovers of dh-lua < 14
 	$(H)$(RM) -f debian/backup
 autopkgtest: sanity test-lua-dynamic-apkgt-$(LUA_TEST_KIND)
@@ -185,6 +186,12 @@ sanity:
 		exit 1;\
 	fi
 
+$(LBTL_EXE):
+	$(H)mkdir -p $(LBTL_DIR)
+	$(H)cp /usr/share/dh-lua/configure.ac $(LBTL_DIR)/configure.ac
+	$(H)cd $(LBTL_DIR) && LIBTOOLIZE='libtoolize -i' autoreconf -f -i
+	$(H)dh_auto_configure --buildsystem=autoconf --sourcedirectory=$(LBTL_DIR) -- \
+		CFLAGS='' LDFLAGS='' LDFLAGS_STATIC=''
 # }}}
 
 # {{{ helper macros
@@ -307,35 +314,35 @@ test-app-dynamic-fake:  $(UID)/app-dynamic
 
 test-lua-dynamic-real:
 	@echo "********************** lua dynamic ($(LUA_VERSION)) *********"
-	$(H)$(call run_multiple_tests,$(LUA_TEST),catchsegv $(LUA) -l$(LUA_MODNAME))
+	$(H)$(call run_multiple_tests,$(LUA_TEST),$(LUA) -l$(LUA_MODNAME))
 	@echo "**************************************************"
 
 test-lua-dynamic-real-custom:
 	@echo "****************** lua dynamic custom ($(LUA_VERSION)) ******"
-	$(H)$(call run_custom_test,$(LUA_TEST_CUSTOM),catchsegv $(LUA))
+	$(H)$(call run_custom_test,$(LUA_TEST_CUSTOM),$(LUA))
 	@echo "*************************************************"
 
 test-lua-dynamic-apkgt-real:
 	@echo "************ lua dynamic ($(LUA_VERSION), autopkgtest) *********"
 	$(H)$(call run_multiple_tests,\
-			$(LUA_TEST),catchsegv $(LUA) -l$(LUA_MODNAME),_apkgt)
+			$(LUA_TEST),$(LUA) -l$(LUA_MODNAME),_apkgt)
 	@echo "**************************************************"
 
 test-lua-dynamic-apkgt-real-custom:
 	@echo "********* lua dynamic custom ($(LUA_VERSION), autopkgtest) ******"
-	$(H)$(call run_custom_test,$(LUA_TEST_CUSTOM),catchsegv $(LUA),_apkgt)
+	$(H)$(call run_custom_test,$(LUA_TEST_CUSTOM),$(LUA),_apkgt)
 	@echo "*************************************************"
 
 test-app-static-real: $(UID)/app-static
 	@echo "*********************** app static ($(LUA_VERSION)) *********"
-	$(H)$(call run_multiple_tests,$(LUA_TEST),catchsegv $(UID)/app-static)
+	$(H)$(call run_multiple_tests,$(LUA_TEST),$(UID)/app-static)
 	@echo "**************************************************"
 
-test-app-dynamic-real: $(UID)/app-dynamic
+test-app-dynamic-real: $(UID)/app-dynamic $(LBTL_EXE)
 	@echo "********************** app dynamic ($(LUA_VERSION)) *********"
 	$(H)$(call run_multiple_tests,$(LUA_TEST),\
 			$(LBTL) --mode=execute -dlopen $(UID)/$(LIBNAME).la \
-			catchsegv $(UID)/app-dynamic)
+			$(UID)/app-dynamic)
 	@echo "**************************************************"
 
 ifneq "$(DEB_HOST_ARCH)" "$(DEB_BUILD_ARCH)"
@@ -368,7 +375,7 @@ endif
 # ------------------------- Installation ---------------------------------------
   
 # {{{ install static and dynamic libraries for module to global location
-installso: $(UID)/$(LIBNAME).la $(UID)/$(PKG_CONF_NAME) $(LUA_HEADER)
+installso: $(UID)/$(LIBNAME).la $(UID)/$(PKG_CONF_NAME) $(LUA_HEADER) $(LBTL_EXE)
 	# .so
 	$(H)echo Installing $(LIBNAME)
 	$(H)mkdir -p $(LUA_CPATH)
@@ -435,10 +442,10 @@ installcommon:
 # ------------------------- C compilation --------------------------------------
 
 # {{{ compilation rules: .lo .la app
-$(UID)/%.lo: %.c
+$(UID)/%.lo: %.c $(LBTL_EXE)
 	$(LBTL) --mode=compile $(CC) -c $(CFLAGS) -o $@ $< 
 
-$(UID)/$(LIBNAME).la $(UID)/$(LUA_MODNAME_PATH).so: $(addprefix $(UID)/,$(CLIB_OBJS))
+$(UID)/$(LIBNAME).la $(UID)/$(LUA_MODNAME_PATH).so: $(addprefix $(UID)/,$(CLIB_OBJS)) $(LBTL_EXE)
 	$(LBTL) --mode=link $(CC) \
 	    -rpath $(LUA_LPATH) -version-info $(VERSION_INFO) -Wl,--no-add-needed \
 		-o $(UID)/$(LIBNAME).la \
@@ -449,14 +456,14 @@ $(UID)/$(LIBNAME).la $(UID)/$(LUA_MODNAME_PATH).so: $(addprefix $(UID)/,$(CLIB_O
 		$(UID)/$(LUA_MODNAME_PATH).so
 	ldd $(UID)/$(LUA_MODNAME_PATH).so
 
-$(UID)/app-static: $(UID)/$(LIBNAME).la
+$(UID)/app-static: $(UID)/$(LIBNAME).la $(LBTL_EXE)
 	$(LBTL) --mode=link $(CC) $(CFLAGS) -Wl,--no-add-needed \
 		-static -o $@ -I . -I $(UID)/ \
 		$(C_TEST_FILE) $(UID)/$(LIBNAME).la \
 		$(LDFLAGS_STATIC) $(LUA_LBTL_S)
 	ldd $(UID)/app-static
 
-$(UID)/app-dynamic: $(UID)/$(LIBNAME).la
+$(UID)/app-dynamic: $(UID)/$(LIBNAME).la $(LBTL_EXE)
 	$(LBTL) --mode=link $(CC) $(CFLAGS) -Wl,--no-add-needed \
 		-o $@ -I . -I $(UID)/ \
 		$(C_TEST_FILE) $(UID)/$(LIBNAME).la \
@@ -512,7 +519,7 @@ configure: sanity $(UID) $(LUA_HEADER) $(UID)/$(PKG_CONF_NAME)
 
 test-config:
 	# tests
-	$(H)ln -sf `which $(LUA)` $(UID)/lua
+	$(H)ln -sf `command -v $(LUA)` $(UID)/lua
 	$(H)if [ ! -z "$(LUA_SOURCES)" ]; then\
 		echo Copying $(LUA_SOURCES) in $(UID) for test; \
 		for X in $(LUA_SOURCES); do\

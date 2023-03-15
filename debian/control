@@ -2,20 +2,21 @@ Source: dh-lua
 Section: interpreters
 Priority: optional
 Maintainer: Debian Lua Team <pkg-lua-devel@lists.alioth.debian.org>
-Uploaders: Enrico Tassi <gareuselesinge@debian.org>, Sergei Golovan <sgolovan@debian.org>
-Build-Depends: debhelper (>= 12~), markdown, perl, txt2man
-Standards-Version: 4.5.0
+Uploaders: Sergei Golovan <sgolovan@debian.org>
+Build-Depends: debhelper-compat (= 13), markdown, perl, txt2man
+Standards-Version: 4.6.1
 Vcs-Git: https://salsa.debian.org/lua-team/dh-lua.git
 Vcs-Browser: https://salsa.debian.org/lua-team/dh-lua
 Homepage: https://salsa.debian.org/lua-team/
 
 Package: dh-lua
 Architecture: all
-Depends: ${misc:Depends}, ${perl:Depends}, debhelper (>= 8.0.0), dctrl-tools, libtool, libtool-bin, pkg-config, libfile-find-rule-perl,
+Depends: ${misc:Depends}, ${perl:Depends}, debhelper (>= 8.0.0), dctrl-tools, libtool, pkg-config, libfile-find-rule-perl,
  liblua5.4-dev, lua5.4,
  liblua5.3-dev, lua5.3,
  liblua5.2-dev, lua5.2,
  liblua5.1-0-dev, lua5.1
+Provides: dh-sequence-lua
 Recommends: dpkg-dev
 Description: helper tools for maintaining Lua-related packages
  This package contains the Debian policy for the Debian packages relative to
